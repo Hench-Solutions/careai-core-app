@@ -1,0 +1,187 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import logoImg from '../../assets/images/Example.png'
+import loginGif from '../../assets/images/022_1.gif'
+import { authUtils } from '../../utils/auth'
+import { API_BASE } from '../../utils/api'
+
+export default function Login() {
+  const navigate = useNavigate()
+
+  const [form, setForm]         = useState({ username: '', password: '' })
+  const [errors, setErrors]     = useState({})
+  const [showPass, setShowPass] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [loading, setLoading]   = useState(false)
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }))
+    if (errors[field]) setErrors(prev => { const e = { ...prev }; delete e[field]; return e })
+    if (errorMsg) setErrorMsg('')
+  }
+
+  const validate = () => {
+    const e = {}
+    if (!form.username.trim()) e.username = 'User ID is required'
+    if (!form.password)        e.password = 'Password is required'
+    return e
+  }
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    const e2 = validate()
+    if (Object.keys(e2).length) { setErrors(e2); return }
+
+    setLoading(true)
+    setErrorMsg('')
+
+    try {
+      const res = await fetch(`${API_BASE}/v1/Auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_Nm:  form.username.trim(),
+          password: form.password
+        })
+      })
+
+      let data = null
+      try { data = await res.json() } catch { /* non-JSON response */ }
+
+      const firstError = data?.errorObj?.[0]
+
+      if (res.ok && firstError?.errorCode === 0 && data?.responseObj) {
+        authUtils.saveSession(data.responseObj.token, data.responseObj)
+        navigate('/dashboard', { replace: true })
+      } else {
+        setErrorMsg(firstError?.errorMessage || 'Invalid User ID or Password. Please try again.')
+      }
+    } catch {
+      setErrorMsg('Unable to connect to server. Please try again later.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const year = new Date().getFullYear()
+
+  return (
+    <div className="login-page">
+
+      {/* ── Top Navbar ── */}
+      <nav className="login-navbar">
+        <div className="login-navbar-content">
+          <div className="login-navbar-left">
+            <img src={logoImg} alt="CareAi" className="login-navbar-logo" />
+          </div>
+          <div className="login-navbar-right">
+            <button className="login-navbar-btn">
+              <i className="fas fa-user-shield"></i> Login
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Main Section ── */}
+      <section className="login-section">
+        <div className="login-wrapper">
+
+          {/* Left Image */}
+          <div className="login-left-image">
+            <img src={loginGif} alt="CareAi" className="shine-effect" />
+          </div>
+
+          {/* Right Form */}
+          <div className="login-right-form">
+            <div className="login-card">
+
+              {/* Card Header */}
+              <div className="login-card-header">
+                <div className="login-card-header-left">
+                  <i className="fa fa-lock"></i> LOGIN
+                </div>
+                <div className="login-card-header-right" title={API_BASE}>
+                  Version 1.0.0 | {API_BASE}
+                </div>
+              </div>
+
+              {/* Card Body */}
+              <div className="login-card-body">
+                <div className="login-title">
+                  <h2>Welcome Back</h2>
+                  <p>Access your health records securely</p>
+                </div>
+
+                {/* Error Message */}
+                {errorMsg && (
+                  <div className="login-error">
+                    <i className="fas fa-exclamation-circle"></i>
+                    {errorMsg}
+                  </div>
+                )}
+
+                <form onSubmit={handleLogin} noValidate>
+
+                  {/* User ID */}
+                  <div className="login-input-group">
+                    <div className="login-input-wrapper">
+                      <input
+                        type="text"
+                        placeholder="User ID"
+                        value={form.username}
+                        onChange={e => handleChange('username', e.target.value)}
+                        className={errors.username ? 'input-error' : ''}
+                        autoComplete="username"
+                      />
+                      <i className="fas fa-user login-input-icon"></i>
+                    </div>
+                    {errors.username && <div className="login-field-error">{errors.username}</div>}
+                  </div>
+
+                  {/* Password */}
+                  <div className="login-input-group">
+                    <div className="login-input-wrapper">
+                      <input
+                        type={showPass ? 'text' : 'password'}
+                        placeholder="Password"
+                        value={form.password}
+                        onChange={e => handleChange('password', e.target.value)}
+                        className={errors.password ? 'input-error' : ''}
+                        autoComplete="current-password"
+                      />
+                      <i
+                        className={`fas ${showPass ? 'fa-eye-slash' : 'fa-eye'} login-input-icon toggle-password`}
+                        onClick={() => setShowPass(p => !p)}
+                      ></i>
+                    </div>
+                    {errors.password && <div className="login-field-error">{errors.password}</div>}
+                  </div>
+
+                  {/* Submit */}
+                  <div>
+                    <button type="submit" className="login-btn" disabled={loading}>
+                      {loading
+                        ? <><i className="fas fa-spinner fa-spin"></i> Logging in...</>
+                        : <><i className="fas fa-sign-in-alt"></i> Log In</>
+                      }
+                    </button>
+                  </div>
+
+                </form>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="login-footer">
+        <h6 className="footer-text">
+          © {year} CareAi — Medical Assistance Platform &nbsp;(Version 1.0.0)
+        </h6>
+      </footer>
+
+    </div>
+  )
+}
